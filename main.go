@@ -36,8 +36,8 @@ var (
 	wrongOperationError = errors.New("-operation flag does not exist")
 	// Use when item is not specified
 	itemError = errors.New("-item flag has to be specified")
-	// Use when id is not provided
-	idError = errors.New("-id flag has to be specified")
+	// Use when id flag is not provided
+	idFlagError = errors.New("-id flag has to be specified")
 )
 
 type Arguments map[string]string
@@ -74,11 +74,11 @@ func doOperation(args Arguments, file *os.File, writer io.Writer) error {
 	case "list":
 		err := list(file, writer)
 		return err
-	case "findBy":
-		err := findBy(args["id"], file, writer)
+	case "findById":
+		err := findById(args["id"], file, writer)
 		return err
 	case "remove":
-		err := remove()
+		err := remove(args["id"], file)
 		return err
 	default:
 		return wrongOperationError
@@ -140,10 +140,10 @@ func list(file *os.File, writer io.Writer) error {
 
 	return nil
 }
-func findBy(id string, file *os.File, writer io.Writer) error {
+func findById(id string, file *os.File, writer io.Writer) error {
 
 	if id == "" {
-		return idError
+		return idFlagError
 	}
 	content, err := ioutil.ReadAll(file)
 	if err != nil {
@@ -156,9 +156,66 @@ func findBy(id string, file *os.File, writer io.Writer) error {
 		return err
 	}
 
+	var foundUser User
+
+	for _, i := range data {
+		if i.Id == id {
+			foundUser = i
+		}
+	}
+	res, marshErr := json.Marshal(foundUser)
+	if marshErr != nil {
+		return marshErr
+	}
+
+	_, writeErr := writer.Write(res)
+	if writeErr != nil {
+		return writeErr
+	}
+
 	return nil
 }
-func remove() error { return nil }
+func remove(id string, file *os.File) error {
+	if id == "" {
+		return idFlagError
+	}
+
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	var data Users
+	var newData Users
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		return err
+	}
+
+	for _, i := range data {
+		if i.Id != id {
+			newData = append(newData, i)
+		}
+	}
+
+	if len(data) == len(newData) {
+		return fmt.Errorf("Item with id %s not found", id)
+	}
+
+	res, marshErr := json.Marshal(newData)
+	if marshErr != nil {
+		return marshErr
+	}
+
+	file.Truncate(0)
+	_, writeErr := file.Write(res)
+
+	if writeErr != nil {
+		return err
+	}
+
+	return nil
+}
 
 func parseArgs() Arguments {
 	flag.Parse()
