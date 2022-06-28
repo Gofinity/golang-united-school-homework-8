@@ -81,7 +81,7 @@ func doOperation(args Arguments, file *os.File, writer io.Writer) error {
 		err := remove(args["id"], file)
 		return err
 	default:
-		return wrongOperationError
+		return fmt.Errorf("Operation %s not allowed!", args["operation"])
 	}
 }
 
@@ -163,9 +163,16 @@ func findById(id string, file *os.File, writer io.Writer) error {
 			foundUser = i
 		}
 	}
-	res, marshErr := json.Marshal(foundUser)
-	if marshErr != nil {
-		return marshErr
+
+	var res []byte
+	if foundUser.Id == "" {
+		res = []byte("")
+	} else {
+		result, marshErr := json.Marshal(foundUser)
+		if marshErr != nil {
+			return marshErr
+		}
+		res = result
 	}
 
 	_, writeErr := writer.Write(res)
